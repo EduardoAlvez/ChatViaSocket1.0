@@ -15,28 +15,29 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutorService;
 
 /**
- * Atende um cliente conectado: espera o ENTRAR, registra na sala e
- * processa os quadros enquanto a conexão estiver aberta.
- * Roda em uma thread do pool do servidor.
+ * Atende um cliente conectado: espera o ENTRAR, registra na sala padrão e
+ * processa os quadros enquanto a conexão estiver aberta — inclusive troca
+ * de sala. Roda em uma thread do pool do servidor.
  */
 public final class AtendimentoCliente implements Runnable {
 
     private final Socket socket;
-    private final GerenciadorClientes gerenciador;
+    private final GerenciadorSalas salas;
     private final ExecutorService pool;
     private final int timeoutEntradaMs;
 
     private ClienteConectado conectado;
+    private Sala salaAtual;
     private boolean registrado;
 
-    public AtendimentoCliente(Socket socket, GerenciadorClientes gerenciador, ExecutorService pool) {
-        this(socket, gerenciador, pool, Protocolo.TIMEOUT_ENTRADA_MS);
+    public AtendimentoCliente(Socket socket, GerenciadorSalas salas, ExecutorService pool) {
+        this(socket, salas, pool, Protocolo.TIMEOUT_ENTRADA_MS);
     }
 
     /** Com timeout de entrada configurável (usado nos testes). */
-    AtendimentoCliente(Socket socket, GerenciadorClientes gerenciador, ExecutorService pool, int timeoutEntradaMs) {
+    AtendimentoCliente(Socket socket, GerenciadorSalas salas, ExecutorService pool, int timeoutEntradaMs) {
         this.socket = socket;
-        this.gerenciador = gerenciador;
+        this.salas = salas;
         this.pool = pool;
         this.timeoutEntradaMs = timeoutEntradaMs;
     }
@@ -55,17 +56,19 @@ public final class AtendimentoCliente implements Runnable {
 
             ClienteConectado novo = new ClienteConectado(nome, saida);
             try {
-                gerenciador.registrar(novo);
+                salas.padrao().clientes().registrar(novo);
             } catch (IllegalArgumentException e) {
                 direto(saida, Protocolo.erro(e.getMessage()));
                 return;
             }
             conectado = novo;
+            salaAtual = salas.padrao();
             registrado = true;
             socket.setSoTimeout(0);
             conectado.iniciarEscritor(pool);
 
-            Log.info(nome + " entrou na sala (" + gerenciador.total() + " conectado(s))");
+            Log.info(nome + " entrou na sala " + salaAtual.nome()
+                    + " (" + salas.total() + " conectado(s))");
             boasVindas();
 
             String bruto;
@@ -89,9 +92,10 @@ public final class AtendimentoCliente implements Runnable {
             Log.erro("erro na conexão com " + socket.getRemoteSocketAddress() + ": " + e.getMessage());
         } finally {
             if (registrado) {
-                gerenciador.remover(conectado.nome());
-                gerenciador.broadcast(Protocolo.saiu(conectado.nome()));
-                Log.info(conectado.nome() + " saiu da sala (" + gerenciador.total() + " conectado(s))");
+                salaAtual.clientes().remover(conectado.nome());
+                salaAtual.clientes().broadcast(Protocolo.saiu(conectado.nome()));
+                Log.info(conectado.nome() + " saiu da sala " + salaAtual.nome()
+                        + " (" + salas.total() + " conectado(s))");
             }
             try {
                 socket.close();
@@ -124,9 +128,10 @@ public final class AtendimentoCliente implements Runnable {
 
     private void boasVindas() {
         conectado.oferecer(Protocolo.ok(conectado.nome()));
-        conectado.oferecer(Protocolo.listaDe(gerenciador.nicks()));
-        gerenciador.broadcast(Protocolo.entrou(conectado.nome()));
-        for (String quadroHistorico : gerenciador.quadrosDoHistorico()) {
+        conectado.oferecer(Protocolo.salaOk(salaAtual.nome()));
+        conectado.oferecer(Protocolo.listaDe(salaAtual.clientes().nicks()));
+        salaAtual.clientes().broadcast(Protocolo.entrou(conectado.nome()));
+        for (String quadroHistorico : salaAtual.clientes().quadrosDoHistorico()) {
             conectado.oferecer(quadroHistorico);
         }
     }
@@ -135,7 +140,10 @@ public final class AtendimentoCliente implements Runnable {
         switch (quadro.tipo()) {
             case MSG -> publicarMensagem(quadro);
             case PRIVADO -> enviarPrivado(quadro);
-            case LISTA -> conectado.oferecer(Protocolo.listaDe(gerenciador.nicks()));
+            case LISTA -> conectado.oferecer(Protocolo.listaDe(salaAtual.clientes().nicks()));
+            case CRIARSALA -> criarSala(quadro);
+            case ENTRASALA -> entrarSala(quadro);
+            case SALAS -> conectado.oferecer(Protocolo.salasDe(salas.nomes()));
             case SAIR -> {
                 return false;
             }
@@ -145,10 +153,59 @@ public final class AtendimentoCliente implements Runnable {
         return true;
     }
 
+    private void criarSala(Quadro quadro) {
+        if (quadro.campos().size() < 2) {
+            conectado.oferecer(Protocolo.erro("uso: /criar <sala> [senha]"));
+            return;
+        }
+        try {
+            Sala nova = salas.criar(quadro.campos().get(0), Protocolo.textoApos(quadro, 1));
+            trocarPara(nova);
+        } catch (IllegalArgumentException e) {
+            conectado.oferecer(Protocolo.erro(e.getMessage()));
+        }
+    }
+
+    private void entrarSala(Quadro quadro) {
+        if (quadro.campos().isEmpty()) {
+            conectado.oferecer(Protocolo.erro("uso: /entrar <sala> [senha]"));
+            return;
+        }
+        String nome = quadro.campos().get(0);
+        String senha = Protocolo.textoApos(quadro, 1);
+        Sala destino = salas.obter(nome);
+        if (destino == null) {
+            conectado.oferecer(Protocolo.erro("sala não existe — crie com /criar <sala> [senha]"));
+            return;
+        }
+        if (!destino.aceita(senha)) {
+            conectado.oferecer(Protocolo.erro("senha incorreta para a sala " + destino.nome()));
+            return;
+        }
+        try {
+            trocarPara(destino);
+        } catch (IllegalArgumentException e) {
+            conectado.oferecer(Protocolo.erro(e.getMessage()));
+        }
+    }
+
+    /** Move o cliente para a sala de destino e entrega a confirmação completa. */
+    private void trocarPara(Sala destino) {
+        salas.mover(conectado, salaAtual, destino);
+        salaAtual = destino;
+        conectado.oferecer(Protocolo.salaOk(destino.nome()));
+        conectado.oferecer(Protocolo.listaDe(destino.clientes().nicks()));
+        for (String quadroHistorico : destino.clientes().quadrosDoHistorico()) {
+            conectado.oferecer(quadroHistorico);
+        }
+        Log.info(conectado.nome() + " mudou para a sala " + destino.nome()
+                + " (" + salas.total() + " conectado(s))");
+    }
+
     private void publicarMensagem(Quadro quadro) {
         try {
             String texto = Protocolo.validarTexto(Protocolo.textoApos(quadro, 0));
-            gerenciador.publicarMensagem(Protocolo.horaAtual(), conectado.nome(), texto);
+            salas.publicarMensagem(salaAtual, Protocolo.horaAtual(), conectado.nome(), texto);
         } catch (IllegalArgumentException e) {
             conectado.oferecer(Protocolo.erro(e.getMessage()));
         }
@@ -168,7 +225,7 @@ public final class AtendimentoCliente implements Runnable {
                 return;
             }
             String frame = Protocolo.privadoHora(Protocolo.horaAtual(), conectado.nome(), para, texto);
-            if (!gerenciador.enviarPara(para, frame)) {
+            if (!salaAtual.clientes().enviarPara(para, frame)) {
                 conectado.oferecer(Protocolo.erro(para + " não está na sala"));
                 return;
             }

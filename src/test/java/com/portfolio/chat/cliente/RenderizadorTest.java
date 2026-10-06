@@ -78,4 +78,14 @@ class RenderizadorTest {
         assertEquals("Conectado como ana", render("ana", "OK|ana"));
         assertEquals("[!] Servidor encerrado", render("ana", "FIM|Servidor encerrado"));
     }
+
+    @Test
+    void confirmacaoDeSala() {
+        assertEquals("Você está na sala vendas", render("ana", "SALOK|vendas"));
+    }
+
+    @Test
+    void listaDeSalas() {
+        assertEquals("Salas: geral,vendas", render("ana", "SALAS|geral,vendas"));
+    }
 }

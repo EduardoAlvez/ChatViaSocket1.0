@@ -60,6 +60,15 @@ public final class GerenciadorClientes {
         }
     }
 
+    /**
+     * Tira o cliente da sala sem fechar a conexão (usado na troca de sala).
+     *
+     * @return o cliente removido, ou null se não estava aqui
+     */
+    public synchronized ClienteConectado desregistrar(String nome) {
+        return porNick.remove(chave(nome));
+    }
+
     public synchronized boolean estaConectado(String nome) {
         return porNick.containsKey(chave(nome));
     }

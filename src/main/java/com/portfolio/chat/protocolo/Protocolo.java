@@ -27,6 +27,10 @@ public final class Protocolo {
     public static final int MAX_CLIENTES = 100;
     /** Tempo máximo (ms) que o servidor espera o primeiro ENTRAR de um cliente. */
     public static final int TIMEOUT_ENTRADA_MS = 30_000;
+    /** Tamanho mínimo de uma senha de sala. */
+    public static final int MIN_SENHA = 4;
+    /** Tamanho máximo de uma senha de sala. */
+    public static final int MAX_SENHA = 32;
     /** Nome que ninguém pode usar (é o do broadcast do servidor). */
     public static final String NICK_RESERVADO = "servidor";
 
@@ -131,6 +135,37 @@ public final class Protocolo {
         return limpo;
     }
 
+    /**
+     * Valida e normaliza a senha de uma sala.
+     * Senha vazia ou nula é aceita e significa "sala aberta".
+     *
+     * @return a senha validada (sem espaços nas pontas)
+     * @throws IllegalArgumentException se a senha tiver tamanho inválido ou caracteres de controle
+     */
+    public static String validarSenha(String senha) {
+        if (senha == null) {
+            return "";
+        }
+        String limpo = senha.trim();
+        if (limpo.isEmpty()) {
+            return "";
+        }
+        if (limpo.length() < MIN_SENHA) {
+            throw new IllegalArgumentException(
+                    "a senha precisa ter pelo menos " + MIN_SENHA + " caracteres");
+        }
+        if (limpo.length() > MAX_SENHA) {
+            throw new IllegalArgumentException(
+                    "a senha pode ter no máximo " + MAX_SENHA + " caracteres");
+        }
+        for (char c : limpo.toCharArray()) {
+            if (Character.isISOControl(c)) {
+                throw new IllegalArgumentException("a senha tem caracteres inválidos");
+            }
+        }
+        return limpo;
+    }
+
     /** Hora atual no formato HH:mm (fuso do sistema). */
     public static String horaAtual() {
         return LocalTime.now().format(HORA);
@@ -158,6 +193,19 @@ public final class Protocolo {
 
     public static String lista() {
         return montar(TipoQuadro.LISTA);
+    }
+
+    public static String criarSala(String sala, String senha) {
+        return montar(TipoQuadro.CRIARSALA, validarNome(sala), validarSenha(senha));
+    }
+
+    /** Entra (ou troca para) a sala; a senha informada não é validada aqui — quem julga é o servidor. */
+    public static String entrarSala(String sala, String senha) {
+        return montar(TipoQuadro.ENTRASALA, validarNome(sala), senha == null ? "" : senha);
+    }
+
+    public static String pedirSalas() {
+        return montar(TipoQuadro.SALAS);
     }
 
     // ---------------------------------------------------------------
@@ -202,6 +250,16 @@ public final class Protocolo {
 
     public static String fim(String motivo) {
         return montar(TipoQuadro.FIM, cortar(motivo, 200));
+    }
+
+    /** Confirmação de que o cliente está na sala (inicial ou após trocar). */
+    public static String salaOk(String sala) {
+        return montar(TipoQuadro.SALOK, sala);
+    }
+
+    /** Lista de salas separada por vírgula (resposta ao pedido SALAS). */
+    public static String salasDe(List<String> nomes) {
+        return montar(TipoQuadro.SALAS, String.join(",", nomes));
     }
 
     // ---------------------------------------------------------------

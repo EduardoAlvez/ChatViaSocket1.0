@@ -140,7 +140,8 @@ public final class ClienteChat {
     }
 
     private void enviarMensagens(Scanner scanner) {
-        System.out.println("Comandos: /lista  /w <nick> <mensagem>  /ajuda  /sair");
+        System.out.println("Comandos: /lista  /salas  /entrar <sala> [senha]  /criar <sala> [senha]"
+                + "  /w <nick> <mensagem>  /ajuda  /sair");
         while (!finalizado) {
             if (!scanner.hasNextLine()) {
                 break;
@@ -168,23 +169,53 @@ public final class ClienteChat {
      * @return true para encerrar o loop (comando /sair)
      */
     private boolean processarLinha(String linha) throws IOException {
-        if (linha.equalsIgnoreCase("/sair")) {
+        String baixo = linha.toLowerCase();
+        if (baixo.equals("/sair")) {
             saida.writeUTF(Protocolo.sair());
             return true;
         }
-        if (linha.equalsIgnoreCase("/lista")) {
+        if (baixo.equals("/lista")) {
             saida.writeUTF(Protocolo.lista());
             return false;
         }
-        if (linha.equalsIgnoreCase("/ajuda")) {
-            System.out.println("""
-                    /lista            mostra quem está na sala
-                    /w <nick> <msg>   mensagem privada
-                    /ajuda            esta ajuda
-                    /sair             sai da sala e desconecta""");
+        if (baixo.equals("/salas")) {
+            saida.writeUTF(Protocolo.pedirSalas());
             return false;
         }
-        if (linha.toLowerCase().startsWith("/w ")) {
+        if (baixo.equals("/ajuda")) {
+            System.out.println("""
+                    /lista                 mostra quem está na sala
+                    /salas                 lista as salas do servidor
+                    /entrar <sala> [senha] entra ou troca de sala
+                    /criar <sala> [senha]  cria uma sala (sem senha = aberta)
+                    /w <nick> <mensagem>   mensagem privada
+                    /ajuda                 esta ajuda
+                    /sair                  sai da sala e desconecta""");
+            return false;
+        }
+        if (baixo.startsWith("/entrar ")) {
+            String[] partes = linha.trim().split("\\s+", 3);
+            if (partes.length == 2) {
+                saida.writeUTF(Protocolo.entrarSala(partes[1], ""));
+            } else if (partes.length == 3) {
+                saida.writeUTF(Protocolo.entrarSala(partes[1], partes[2]));
+            } else {
+                System.out.println("[!] uso: /entrar <sala> [senha]");
+            }
+            return false;
+        }
+        if (baixo.startsWith("/criar ")) {
+            String[] partes = linha.trim().split("\\s+", 3);
+            if (partes.length == 2) {
+                saida.writeUTF(Protocolo.criarSala(partes[1], ""));
+            } else if (partes.length == 3) {
+                saida.writeUTF(Protocolo.criarSala(partes[1], partes[2]));
+            } else {
+                System.out.println("[!] uso: /criar <sala> [senha]");
+            }
+            return false;
+        }
+        if (baixo.startsWith("/w ")) {
             String[] partes = linha.trim().split("\\s+", 3);
             if (partes.length < 3) {
                 System.out.println("[!] uso: /w <nick> <mensagem>");

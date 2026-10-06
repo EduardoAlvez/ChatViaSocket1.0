@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public final class Servidor {
 
     private final int porta;
-    private final GerenciadorClientes gerenciador;
+    private final GerenciadorSalas salas;
     private final ExecutorService pool;
     private final int timeoutEntradaMs;
 
@@ -26,17 +26,17 @@ public final class Servidor {
     private int portaEfetiva;
 
     public Servidor(int porta) {
-        this(porta, new GerenciadorClientes(), Protocolo.TIMEOUT_ENTRADA_MS);
+        this(porta, new GerenciadorSalas(), Protocolo.TIMEOUT_ENTRADA_MS);
     }
 
-    /** Permite trocar o gerenciador (testes com limites menores). */
-    public Servidor(int porta, GerenciadorClientes gerenciador) {
-        this(porta, gerenciador, Protocolo.TIMEOUT_ENTRADA_MS);
+    /** Permite trocar o gerenciador de salas (testes com limites menores). */
+    public Servidor(int porta, GerenciadorSalas salas) {
+        this(porta, salas, Protocolo.TIMEOUT_ENTRADA_MS);
     }
 
-    Servidor(int porta, GerenciadorClientes gerenciador, int timeoutEntradaMs) {
+    Servidor(int porta, GerenciadorSalas salas, int timeoutEntradaMs) {
         this.porta = porta;
-        this.gerenciador = gerenciador;
+        this.salas = salas;
         this.timeoutEntradaMs = timeoutEntradaMs;
         this.pool = Executors.newCachedThreadPool();
     }
@@ -57,7 +57,7 @@ public final class Servidor {
         while (rodando) {
             try {
                 Socket socket = serverSocket.accept();
-                pool.execute(new AtendimentoCliente(socket, gerenciador, pool, timeoutEntradaMs));
+                pool.execute(new AtendimentoCliente(socket, salas, pool, timeoutEntradaMs));
             } catch (IOException e) {
                 if (rodando) {
                     Log.erro("falha ao aceitar conexão: " + e.getMessage());
@@ -71,18 +71,18 @@ public final class Servidor {
         return portaEfetiva;
     }
 
-    public GerenciadorClientes gerenciador() {
-        return gerenciador;
+    public GerenciadorSalas salas() {
+        return salas;
     }
 
     public boolean rodando() {
         return rodando;
     }
 
-    /** Mensagem do operador do servidor para todos da sala. */
+    /** Mensagem do operador do servidor para todos de todas as salas. */
     public void publicarServidor(String texto) {
         String limpo = Protocolo.validarTexto(texto);
-        gerenciador.broadcast(
+        salas.broadcastTodas(
                 Protocolo.mensagemHora(Protocolo.horaAtual(), "Servidor", limpo));
     }
 
@@ -92,7 +92,7 @@ public final class Servidor {
             return;
         }
         rodando = false;
-        gerenciador.encerrarTodos(Protocolo.fim("Servidor encerrado"));
+        salas.encerrarTodas(Protocolo.fim("Servidor encerrado"));
         try {
             if (serverSocket != null) {
                 serverSocket.close();

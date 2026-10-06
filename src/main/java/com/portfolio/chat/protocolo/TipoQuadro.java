@@ -1,9 +1,9 @@
 package com.portfolio.chat.protocolo;
 
 /**
- * Tipos de quadro trocados entre cliente e servidor.
- * Cliente envia: ENTRAR, SAIR, MSG, PRIVADO, LISTA.
- * Server envia: OK, ERRO, ENTROU, SAIU, MSG, PRIVADO, HIST, LISTA, FIM.
+ * Tipos de quadros trocados entre cliente e servidor.
+ * Cliente envia: ENTRAR, SAIR, MSG, PRIVADO, LISTA, CRIARSALA, ENTRASALA, SALAS.
+ * Server envia: OK, ERRO, ENTROU, SAIU, MSG, PRIVADO, HIST, LISTA, FIM, SALOK, SALAS.
  */
 public enum TipoQuadro {
     ENTRAR,
@@ -16,5 +16,9 @@ public enum TipoQuadro {
     ENTROU,
     SAIU,
     HIST,
-    FIM
+    FIM,
+    CRIARSALA,
+    ENTRASALA,
+    SALAS,
+    SALOK
 }

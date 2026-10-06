@@ -64,7 +64,7 @@ class IntegracaoChatTest {
 
         assertEquals("LISTA|ana", proximo(ana, TipoQuadro.LISTA));
         assertEquals("ENTROU|ana", proximo(ana, TipoQuadro.ENTROU));
-        assertEquals(1, servidor.gerenciador().total());
+        assertEquals(1, servidor.salas().total());
     }
 
     @Test
@@ -91,7 +91,7 @@ class IntegracaoChatTest {
         ana.enviar(Protocolo.sair());
 
         assertEquals("SAIU|ana", proximo(bia, TipoQuadro.SAIU));
-        aguardar(() -> servidor.gerenciador().total() == 1);
+        aguardar(() -> servidor.salas().total() == 1);
     }
 
     @Test
@@ -153,7 +153,7 @@ class IntegracaoChatTest {
     @Test
     void salaCheiaRejeitaNovoCliente() throws Exception {
         servidor.encerrar();
-        servidor = new Servidor(0, new GerenciadorClientes(1, 20));
+        servidor = new Servidor(0, new GerenciadorSalas(1, 20));
         servidor.iniciar();
 
         entrar("ana");
@@ -190,7 +190,7 @@ class IntegracaoChatTest {
         Quadro fimBia = Protocolo.parse(proximo(bia, TipoQuadro.FIM));
         assertTrue(Protocolo.textoApos(fimAna, 0).contains("Servidor encerrado"));
         assertTrue(Protocolo.textoApos(fimBia, 0).contains("Servidor encerrado"));
-        assertEquals(0, servidor.gerenciador().total());
+        assertEquals(0, servidor.salas().total());
     }
 
     @Test
@@ -201,7 +201,7 @@ class IntegracaoChatTest {
             ExecutorService pool = Executors.newCachedThreadPool();
             try {
                 Thread atendimento = new Thread(
-                        new AtendimentoCliente(ladoServidor, new GerenciadorClientes(), pool, 250));
+                        new AtendimentoCliente(ladoServidor, new GerenciadorSalas(), pool, 250));
                 atendimento.start();
 
                 cliente.setSoTimeout(2000);

@@ -19,12 +19,16 @@ public final class ConsoleServidor implements Runnable {
     @Override
     public void run() {
         try (Scanner scanner = new Scanner(System.in)) {
-            Log.info("Console do servidor: digite um texto para avisar todos, /sair para encerrar");
+            Log.info("Console do servidor: digite um texto para avisar todos, /salas para listar, /sair para encerrar");
             while (scanner.hasNextLine()) {
                 String linha = scanner.nextLine();
                 if (linha.equalsIgnoreCase("/sair")) {
                     servidor.encerrar();
                     return;
+                }
+                if (linha.equalsIgnoreCase("/salas")) {
+                    Log.info("Salas: " + String.join(", ", servidor.salas().nomes()));
+                    continue;
                 }
                 if (linha.isBlank()) {
                     continue;

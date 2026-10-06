@@ -158,4 +158,78 @@ class ProtocoloTest {
     void horaAtualNoFormatoHoraMinuto() {
         assertTrue(Protocolo.horaAtual().matches("\\d{2}:\\d{2}"));
     }
+
+    // ---------------------------------------------------------------
+    // Senha e salas
+    // ---------------------------------------------------------------
+
+    @Test
+    void validarSenhaVaziaOuNulaFazSalaAberta() {
+        assertEquals("", Protocolo.validarSenha(""));
+        assertEquals("", Protocolo.validarSenha(null));
+        assertEquals("", Protocolo.validarSenha("   "));
+    }
+
+    @Test
+    void validarSenhaValidaETrim() {
+        assertEquals("senha1", Protocolo.validarSenha("  senha1  "));
+    }
+
+    @Test
+    void validarSenhaCurtaLanca() {
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> Protocolo.validarSenha("abc"));
+        assertTrue(erro.getMessage().contains("pelo menos"));
+    }
+
+    @Test
+    void validarSenhaLongaLanca() {
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> Protocolo.validarSenha("x".repeat(33)));
+        assertTrue(erro.getMessage().contains("máximo"));
+    }
+
+    @Test
+    void validarSenhaComCaracterDeControleLanca() {
+        assertThrows(IllegalArgumentException.class, () -> Protocolo.validarSenha("abcd\nef"));
+    }
+
+    @Test
+    void criarSalaMontaQuadroComSenha() throws Exception {
+        Quadro quadro = Protocolo.parse(Protocolo.criarSala("vip", "senha1"));
+        assertEquals(TipoQuadro.CRIARSALA, quadro.tipo());
+        assertEquals(List.of("vip", "senha1"), quadro.campos());
+    }
+
+    @Test
+    void criarSalaComSenhaVaziaFicaAberta() throws Exception {
+        Quadro quadro = Protocolo.parse(Protocolo.criarSala("livre", ""));
+        assertEquals(List.of("livre", ""), quadro.campos());
+    }
+
+    @Test
+    void criarSalaComNomeInvalidoLanca() {
+        assertThrows(IllegalArgumentException.class, () -> Protocolo.criarSala("x y", "senha1"));
+    }
+
+    @Test
+    void entrarSalaMontaQuadro() throws Exception {
+        Quadro quadro = Protocolo.parse(Protocolo.entrarSala("vip", "senha1"));
+        assertEquals(TipoQuadro.ENTRASALA, quadro.tipo());
+        assertEquals(List.of("vip", "senha1"), quadro.campos());
+    }
+
+    @Test
+    void senhaInformadaComPipeFicaIntacta() throws Exception {
+        Quadro quadro = Protocolo.parse(Protocolo.entrarSala("vip", "a|b"));
+        assertEquals("a|b", Protocolo.textoApos(quadro, 1));
+    }
+
+    @Test
+    void pedirSalasESalasDeESalaOk() throws Exception {
+        assertEquals(TipoQuadro.SALAS, Protocolo.parse(Protocolo.pedirSalas()).tipo());
+        assertEquals("geral,vendas",
+                Protocolo.textoApos(Protocolo.parse(Protocolo.salasDe(List.of("geral", "vendas"))), 0));
+        assertEquals("SALOK|vendas", Protocolo.salaOk("vendas"));
+    }
 }

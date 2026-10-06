@@ -30,7 +30,9 @@ public final class Renderizador {
                     + Protocolo.textoApos(quadro, 2) + " (histórico)";
             case PRIVADO -> renderPrivado(quadro);
             case FIM -> "[!] " + Protocolo.textoApos(quadro, 0);
-            case SAIR, ENTRAR -> "";
+            case SALOK -> "Você está na sala " + campo(quadro, 0);
+            case SALAS -> "Salas: " + campo(quadro, 0);
+            case SAIR, ENTRAR, CRIARSALA, ENTRASALA -> "";
         };
     }
 
