@@ -22,16 +22,48 @@ public final class GerenciadorSalas {
     private final Map<String, Sala> salas = new HashMap<>();
     private final int maxClientes;
     private final int maxHistorico;
+    private final HistoricoArquivo historico;
 
     public GerenciadorSalas() {
-        this(Protocolo.MAX_CLIENTES, Protocolo.MAX_HISTORICO);
+        this(Protocolo.MAX_CLIENTES, Protocolo.MAX_HISTORICO, null);
     }
 
     /** Permite limites menores nos testes. */
     public GerenciadorSalas(int maxClientes, int maxHistorico) {
+        this(maxClientes, maxHistorico, null);
+    }
+
+    /** Com persistência em disco (usado pelo servidor de verdade). */
+    public GerenciadorSalas(HistoricoArquivo historico) {
+        this(Protocolo.MAX_CLIENTES, Protocolo.MAX_HISTORICO, historico);
+    }
+
+    public GerenciadorSalas(int maxClientes, int maxHistorico, HistoricoArquivo historico) {
         this.maxClientes = maxClientes;
         this.maxHistorico = maxHistorico;
+        this.historico = historico;
         salas.put(SALA_PADRAO.toLowerCase(), new Sala(SALA_PADRAO, null, maxClientes, maxHistorico));
+        if (historico != null) {
+            carregarDoDisco();
+        }
+    }
+
+    /** Reconstrói salas e históricos a partir dos arquivos. */
+    private void carregarDoDisco() {
+        for (String[] dados : historico.lerSalas()) {
+            String nome = dados[0];
+            if (obter(nome) == null) {
+                SenhaSala senha = dados[1].isEmpty() || dados[2].isEmpty()
+                        ? null
+                        : SenhaSala.deDados(dados[1], dados[2]);
+                recriar(nome, senha);
+            }
+        }
+        for (Sala sala : List.copyOf(salas.values())) {
+            for (String[] linha : historico.lerLinhas(sala.nome())) {
+                sala.clientes().restaurarHistorico(linha[0], linha[1], linha[2]);
+            }
+        }
     }
 
     /** Sala inicial (sempre existe). */
@@ -62,6 +94,11 @@ public final class GerenciadorSalas {
         SenhaSala senhaSala = senhaLimpa.isEmpty() ? null : SenhaSala.nova(senhaLimpa);
         Sala sala = new Sala(limpo, senhaSala, maxClientes, maxHistorico);
         salas.put(chave, sala);
+        if (historico != null) {
+            historico.anexarSala(limpo,
+                    senhaSala == null ? "" : senhaSala.saltHex(),
+                    senhaSala == null ? "" : senhaSala.hashHex());
+        }
         return sala;
     }
 
@@ -102,6 +139,9 @@ public final class GerenciadorSalas {
     /** Guarda a mensagem na sala (memória + arquivo, quando houver). */
     public synchronized void publicarMensagem(Sala sala, String hora, String de, String texto) {
         sala.clientes().publicarMensagem(hora, de, texto);
+        if (historico != null) {
+            historico.anexar(sala.nome(), hora, de, texto);
+        }
     }
 
     /** Entrega um quadro para todas as salas (aviso do operador, encerramento). */

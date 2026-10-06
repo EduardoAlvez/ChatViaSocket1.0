@@ -4,9 +4,12 @@ import com.portfolio.chat.Log;
 import com.portfolio.chat.protocolo.Protocolo;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * Ponto de entrada do servidor.
+ * Salas e histórico ficam na pasta {@code historico/} ao lado de onde o
+ * servidor foi iniciado.
  * Uso: {@code java -jar chat-via-socket-1.0.0.jar [porta]}
  */
 public final class ServidorChat {
@@ -27,7 +30,8 @@ public final class ServidorChat {
         }
 
         try {
-            Servidor servidor = new Servidor(porta);
+            GerenciadorSalas salas = new GerenciadorSalas(new HistoricoArquivo(Path.of("historico")));
+            Servidor servidor = new Servidor(porta, salas);
             servidor.iniciar();
             Log.info("Servidor iniciado na porta " + servidor.portaEfetiva());
             new Thread(new ConsoleServidor(servidor), "console-servidor").start();

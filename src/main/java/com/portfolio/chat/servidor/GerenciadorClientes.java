@@ -138,6 +138,14 @@ public final class GerenciadorClientes {
         return quadros;
     }
 
+    /** Guarda uma mensagem vinda do arquivo na partida do servidor (sem broadcast). */
+    public synchronized void restaurarHistorico(String hora, String nome, String texto) {
+        historico.addLast(new Registro(hora, nome, texto));
+        while (historico.size() > maxHistorico) {
+            historico.removeFirst();
+        }
+    }
+
     /** Avisa todo mundo e encerra todas as conexões entregando o que resta na fila. */
     public synchronized void encerrarTodos(String quadroDespedida) {
         for (ClienteConectado cliente : porNick.values()) {
