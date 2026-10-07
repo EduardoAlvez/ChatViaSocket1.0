@@ -52,14 +52,14 @@ feito em Java puro, sem bibliotecas de rede.
 mvn package
 ```
 
-O jar final (`target/chat-via-socket-1.1.0.jar`) já embute o FlatLaf
+O jar final (`target/chat-via-socket-1.2.0.jar`) já embute o FlatLaf
 — não precisa de dependências extras para rodar.
 
 ### 2️⃣ Subir o servidor
 
 ```bash
-java -jar target/chat-via-socket-1.1.0.jar          # porta 6666
-java -jar target/chat-via-socket-1.1.0.jar 7777      # porta outra
+java -jar target/chat-via-socket-1.2.0.jar          # porta 6666
+java -jar target/chat-via-socket-1.2.0.jar 7777      # porta outra
 ```
 
 Salas e histórico são gravados na pasta `historico/` ao lado de onde o
@@ -71,8 +71,8 @@ servidor foi executado. No console do servidor: `/salas` lista as salas,
 **Cliente gráfico (Swing):**
 
 ```bash
-java -cp target/chat-via-socket-1.1.0.jar com.portfolio.chat.cliente.swing.ClienteSwing
-java -cp target/chat-via-socket-1.1.0.jar com.portfolio.chat.cliente.swing.ClienteSwing 192.168.0.10 6666
+java -cp target/chat-via-socket-1.2.0.jar com.portfolio.chat.cliente.swing.ClienteSwing
+java -cp target/chat-via-socket-1.2.0.jar com.portfolio.chat.cliente.swing.ClienteSwing 192.168.0.10 6666
 ```
 
 Aparece um diálogo de login (nome e servidor) e depois a janela do chat,
@@ -81,8 +81,8 @@ com botões **Salas**, **Entrar**, **Criar** e **Sair**.
 **Cliente de console (terminal):**
 
 ```bash
-java -cp target/chat-via-socket-1.1.0.jar com.portfolio.chat.cliente.ClienteChat
-java -cp target/chat-via-socket-1.1.0.jar com.portfolio.chat.cliente.ClienteChat 192.168.0.10 6666
+java -cp target/chat-via-socket-1.2.0.jar com.portfolio.chat.cliente.ClienteChat
+java -cp target/chat-via-socket-1.2.0.jar com.portfolio.chat.cliente.ClienteChat 192.168.0.10 6666
 ```
 
 Pela IDE: rode as classes `ServidorChat`, `ClienteSwing` ou `ClienteChat`
