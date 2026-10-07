@@ -1,6 +1,7 @@
 package com.portfolio.chat.servidor;
 
 import com.portfolio.chat.protocolo.Protocolo;
+import com.portfolio.chat.protocolo.SenhaHash;
 import com.portfolio.chat.protocolo.ProtocoloException;
 import com.portfolio.chat.protocolo.Quadro;
 import com.portfolio.chat.protocolo.TipoQuadro;
@@ -81,11 +82,13 @@ class IntegracaoPersistenciaTest {
         ClienteTeste bia = entrar("bia");
         drenarEntradas(bia);
 
-        bia.enviar(Protocolo.entrarSala("vip", "9999"));
+        bia.enviar(Protocolo.entrarSala("vip"));
+        responderDesafio(bia, "vip", "9999");
         Quadro erro = Protocolo.parse(proximo(bia, TipoQuadro.ERRO));
         assertTrue(Protocolo.textoApos(erro, 0).contains("senha incorreta"));
 
-        bia.enviar(Protocolo.entrarSala("vip", "1234"));
+        bia.enviar(Protocolo.entrarSala("vip"));
+        responderDesafio(bia, "vip", "1234");
         assertEquals("SALOK|vip", proximo(bia, TipoQuadro.SALOK));
     }
 
@@ -102,7 +105,7 @@ class IntegracaoPersistenciaTest {
         ClienteTeste bia = entrar("bia");
         drenarEntradas(bia);
 
-        bia.enviar(Protocolo.entrarSala("apoio", ""));
+        bia.enviar(Protocolo.entrarSala("apoio"));
         assertEquals("SALOK|apoio", proximo(bia, TipoQuadro.SALOK));
     }
 
@@ -147,6 +150,15 @@ class IntegracaoPersistenciaTest {
         for (ClienteTeste cliente : clientes) {
             proximo(cliente, TipoQuadro.ENTROU);
         }
+    }
+
+    /** Responde ao CHAVE do servidor com a prova da senha. */
+    private void responderDesafio(ClienteTeste cliente, String sala, String senha)
+            throws IOException, ProtocoloException {
+        Quadro chave = Protocolo.parse(proximo(cliente, TipoQuadro.CHAVE));
+        String hash = SenhaHash.daSenha(senha, chave.campos().get(0));
+        cliente.enviar(Protocolo.entrarSalaComResposta(sala,
+                SenhaHash.resposta(hash, chave.campos().get(1))));
     }
 
     private String proximo(ClienteTeste cliente, TipoQuadro tipo) throws IOException, ProtocoloException {

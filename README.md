@@ -18,8 +18,8 @@ feito em Java puro, sem bibliotecas de rede.
 
 - **Salas**: a sala `geral` existe sempre; crie quantas quiser com `/criar`
   e troque de sala com `/entrar` sem se desconectar
-- **Senha por sala** (SHA-256 + salt) — só quem tem a senha entra;
-  sala criada sem senha é aberta para todos
+- **Senha por sala** (SHA-256 + salt) — só quem tem a senha entra, e ela
+  nunca aparece no tráfego; sala criada sem senha é aberta para todos
 - **Persistência**: salas (`historico/salas.tsv`) e histórico de cada sala
   (`historico/<sala>.txt`) sobrevivem ao reinício do servidor — com rotação
   automática para não crescer sem fim
@@ -119,16 +119,19 @@ tcpdump e de testar sem dependência nenhuma:
 | `PRIVADO\|hora\|de\|para\|texto` | cliente → servidor → alvo | mensagem privada |
 | `LISTA` / `LISTA\|nicks` | cliente ↔ servidor | quem está na sala |
 | `HIST\|hora\|de\|texto` | servidor → cliente | mensagens anteriores ao entrar |
-| `CRIARSALA\|sala\|senha` | cliente → servidor | cria sala e entra nela |
-| `ENTRASALA\|sala\|senha` | cliente → servidor | troca de sala (com senha, se houver) |
+| `CRIARSALA\|sala\|salt\|hash` | cliente → servidor | cria sala com senha (hash, nunca a senha) |
+| `ENTRASALA\|sala` | cliente → servidor | troca de sala (a senha vai no desafio abaixo) |
+| `CHAVE\|salt\|nonce` | servidor → cliente | desafio: entra com a prova da senha |
+| `ENTRASALAH\|sala\|resposta` | cliente → servidor | prova = SHA-256(hash + nonce) |
 | `SALAS` / `SALAS\|sala1,sala2` | cliente ↔ servidor | lista de salas (`*` = com senha) |
 | `SALOK\|sala` | servidor → cliente | sala atual confirmada |
 | `SAIR` | cliente → servidor | sair da sala |
 | `FIM\|motivo` | servidor → sala | servidor encerrou |
 
 O texto é sempre o **último** campo, então pode conter `|` sem quebrar o parse.
-A senha trafega no quadro em claro (protocolo legado) — o servidor guarda
-apenas o hash SHA-256 com salt.
+A senha **nunca trafega no fio**: na criação vai só `salt + hash` e na entrada
+o servidor manda um nonce (`CHAVE`) e o cliente responde com a prova —
+o servidor guarda apenas o hash SHA-256 com salt.
 
 ## ⚙️ Como Funciona Por Dentro
 

@@ -1,5 +1,6 @@
 package com.portfolio.chat.servidor;
 
+import com.portfolio.chat.Log;
 import com.portfolio.chat.protocolo.Protocolo;
 
 import java.util.ArrayList;
@@ -52,11 +53,16 @@ public final class GerenciadorSalas {
     private void carregarDoDisco() {
         for (String[] dados : historico.lerSalas()) {
             String nome = dados[0];
-            if (obter(nome) == null) {
+            if (obter(nome) != null) {
+                continue;
+            }
+            try {
                 SenhaSala senha = dados[1].isEmpty() || dados[2].isEmpty()
                         ? null
                         : SenhaSala.deDados(dados[1], dados[2]);
                 recriar(nome, senha);
+            } catch (IllegalArgumentException e) {
+                Log.erro("sala corrompida no disco ignorada: " + nome);
             }
         }
         for (Sala sala : List.copyOf(salas.values())) {
@@ -85,13 +91,33 @@ public final class GerenciadorSalas {
      * @throws IllegalArgumentException se o nome for inválido ou a sala já existir
      */
     public synchronized Sala criar(String nome, String senha) {
+        String senhaLimpa = Protocolo.validarSenha(senha);
+        SenhaSala senhaSala = senhaLimpa.isEmpty() ? null : SenhaSala.nova(senhaLimpa);
+        return criarInterna(nome, senhaSala);
+    }
+
+    /**
+     * Cria a sala com o salt + hash calculados pelo cliente — o servidor
+     * nunca vê a senha em texto puro. Os dois campos vazios = sala aberta.
+     *
+     * @throws IllegalArgumentException se nome/formato forem inválidos ou a sala já existir
+     */
+    public synchronized Sala criarComDados(String nome, String saltHex, String hashHex) {
+        boolean saltVazio = saltHex == null || saltHex.isEmpty();
+        boolean hashVazio = hashHex == null || hashHex.isEmpty();
+        if (saltVazio != hashVazio) {
+            throw new IllegalArgumentException("salt e hash precisam vir juntos");
+        }
+        SenhaSala senhaSala = saltVazio ? null : SenhaSala.deDados(saltHex, hashHex);
+        return criarInterna(nome, senhaSala);
+    }
+
+    private Sala criarInterna(String nome, SenhaSala senhaSala) {
         String limpo = Protocolo.validarNome(nome);
         String chave = limpo.toLowerCase();
         if (salas.containsKey(chave)) {
             throw new IllegalArgumentException("essa sala já existe");
         }
-        String senhaLimpa = Protocolo.validarSenha(senha);
-        SenhaSala senhaSala = senhaLimpa.isEmpty() ? null : SenhaSala.nova(senhaLimpa);
         Sala sala = new Sala(limpo, senhaSala, maxClientes, maxHistorico);
         salas.put(chave, sala);
         if (historico != null) {

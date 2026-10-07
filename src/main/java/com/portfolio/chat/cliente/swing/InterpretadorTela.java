@@ -36,6 +36,10 @@ public final class InterpretadorTela {
                 nomes = List.copyOf(nomes);
             }
         }
+
+        /** Desafio de senha da sala: cliente responde com a prova. */
+        record Chave(String salt, String nonce) implements EventoTela {
+        }
     }
 
     /** Como a tela colore/formata cada tipo de linha. */
@@ -81,7 +85,8 @@ public final class InterpretadorTela {
             case LISTA -> new EventoTela.Participantes(listaDe(campo(quadro, 0)));
             case SALOK -> new EventoTela.SalaAtual(campo(quadro, 0));
             case SALAS -> new EventoTela.SalasDisponiveis(listaDe(campo(quadro, 0)));
-            case SAIR, ENTRAR, CRIARSALA, ENTRASALA -> null;
+            case CHAVE -> new EventoTela.Chave(campo(quadro, 0), campo(quadro, 1));
+            case SAIR, ENTRAR, CRIARSALA, ENTRASALA, ENTRASALAH -> null;
         };
     }
 

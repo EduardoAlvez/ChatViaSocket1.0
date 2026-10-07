@@ -1,6 +1,7 @@
 package com.portfolio.chat.servidor;
 
 import com.portfolio.chat.protocolo.Protocolo;
+import com.portfolio.chat.protocolo.SenhaHash;
 import com.portfolio.chat.protocolo.ProtocoloException;
 import com.portfolio.chat.protocolo.Quadro;
 import com.portfolio.chat.protocolo.TipoQuadro;
@@ -82,7 +83,8 @@ class IntegracaoSalasTest {
         bia.enviar(Protocolo.criarSala("vip", "1234"));
         proximo(bia, TipoQuadro.LISTA);
 
-        ana.enviar(Protocolo.entrarSala("vip", "9999"));
+        ana.enviar(Protocolo.entrarSala("vip"));
+        responderDesafio(ana, "vip", "9999");
 
         Quadro erro = Protocolo.parse(proximo(ana, TipoQuadro.ERRO));
         assertTrue(Protocolo.textoApos(erro, 0).contains("senha incorreta"));
@@ -98,7 +100,8 @@ class IntegracaoSalasTest {
         bia.enviar(Protocolo.criarSala("vip", "1234"));
         proximo(bia, TipoQuadro.LISTA);
 
-        ana.enviar(Protocolo.entrarSala("vip", "1234"));
+        ana.enviar(Protocolo.entrarSala("vip"));
+        responderDesafio(ana, "vip", "1234");
 
         assertEquals("SALOK|vip", proximo(ana, TipoQuadro.SALOK));
     }
@@ -123,7 +126,7 @@ class IntegracaoSalasTest {
         ClienteTeste ana = entrar("ana");
         drenarEntradas(ana);
 
-        ana.enviar(Protocolo.entrarSala("geral", ""));
+        ana.enviar(Protocolo.entrarSala("geral"));
 
         Quadro erro = Protocolo.parse(proximo(ana, TipoQuadro.ERRO));
         assertTrue(Protocolo.textoApos(erro, 0).contains("já está nessa sala"));
@@ -160,7 +163,7 @@ class IntegracaoSalasTest {
         ClienteTeste ana = entrar("ana");
         drenarEntradas(ana);
 
-        ana.enviar(Protocolo.entrarSala("naoexiste", ""));
+        ana.enviar(Protocolo.entrarSala("naoexiste"));
 
         Quadro erro = Protocolo.parse(proximo(ana, TipoQuadro.ERRO));
         assertTrue(Protocolo.textoApos(erro, 0).contains("/criar"));
@@ -189,6 +192,15 @@ class IntegracaoSalasTest {
         for (ClienteTeste cliente : clientes) {
             proximo(cliente, TipoQuadro.ENTROU);
         }
+    }
+
+    /** Responde ao CHAVE do servidor com a prova da senha (certa ou errada). */
+    private void responderDesafio(ClienteTeste cliente, String sala, String senha)
+            throws IOException, ProtocoloException {
+        Quadro chave = Protocolo.parse(proximo(cliente, TipoQuadro.CHAVE));
+        String hash = SenhaHash.daSenha(senha, chave.campos().get(0));
+        cliente.enviar(Protocolo.entrarSalaComResposta(sala,
+                SenhaHash.resposta(hash, chave.campos().get(1))));
     }
 
     private String proximo(ClienteTeste cliente, TipoQuadro tipo) throws IOException, ProtocoloException {

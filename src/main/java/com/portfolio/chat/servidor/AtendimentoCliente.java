@@ -4,6 +4,7 @@ import com.portfolio.chat.Log;
 import com.portfolio.chat.protocolo.Protocolo;
 import com.portfolio.chat.protocolo.ProtocoloException;
 import com.portfolio.chat.protocolo.Quadro;
+import com.portfolio.chat.protocolo.SenhaHash;
 import com.portfolio.chat.protocolo.TipoQuadro;
 
 import java.io.DataInputStream;
@@ -29,6 +30,8 @@ public final class AtendimentoCliente implements Runnable {
     private ClienteConectado conectado;
     private Sala salaAtual;
     private boolean registrado;
+    private Sala desafioPendente;
+    private String noncePendente;
 
     public AtendimentoCliente(Socket socket, GerenciadorSalas salas, ExecutorService pool) {
         this(socket, salas, pool, Protocolo.TIMEOUT_ENTRADA_MS);
@@ -143,6 +146,7 @@ public final class AtendimentoCliente implements Runnable {
             case LISTA -> conectado.oferecer(Protocolo.listaDe(salaAtual.clientes().nicks()));
             case CRIARSALA -> criarSala(quadro);
             case ENTRASALA -> entrarSala(quadro);
+            case ENTRASALAH -> entrarComResposta(quadro);
             case SALAS -> conectado.oferecer(Protocolo.salasDe(salas.nomesMarcados()));
             case SAIR -> {
                 return false;
@@ -154,12 +158,14 @@ public final class AtendimentoCliente implements Runnable {
     }
 
     private void criarSala(Quadro quadro) {
-        if (quadro.campos().size() < 2) {
+        if (quadro.campos().size() != 3) {
             conectado.oferecer(Protocolo.erro("uso: /criar <sala> [senha]"));
             return;
         }
         try {
-            Sala nova = salas.criar(quadro.campos().get(0), Protocolo.textoApos(quadro, 1));
+            Sala nova = salas.criarComDados(
+                    quadro.campos().get(0), quadro.campos().get(1), quadro.campos().get(2));
+            limparDesafio();
             trocarPara(nova);
         } catch (IllegalArgumentException e) {
             conectado.oferecer(Protocolo.erro(e.getMessage()));
@@ -167,21 +173,54 @@ public final class AtendimentoCliente implements Runnable {
     }
 
     private void entrarSala(Quadro quadro) {
-        if (quadro.campos().isEmpty()) {
-            conectado.oferecer(Protocolo.erro("uso: /entrar <sala> [senha]"));
+        if (quadro.campos().size() != 1) {
+            conectado.oferecer(Protocolo.erro("quadro ENTRASALA desatualizado — atualize o cliente"));
             return;
         }
         String nome = quadro.campos().get(0);
-        String senha = Protocolo.textoApos(quadro, 1);
         Sala destino = salas.obter(nome);
         if (destino == null) {
             conectado.oferecer(Protocolo.erro("sala não existe — crie com /criar <sala> [senha]"));
             return;
         }
-        if (!destino.aceita(senha)) {
+        if (destino.aberta()) {
+            limparDesafio();
+            trocarParaSegura(destino);
+            return;
+        }
+        desafioPendente = destino;
+        noncePendente = SenhaHash.novoNonce();
+        conectado.oferecer(Protocolo.chave(destino.senha().saltHex(), noncePendente));
+    }
+
+    /** Prova vinda do cliente depois do desafio CHAVE. */
+    private void entrarComResposta(Quadro quadro) {
+        if (quadro.campos().size() != 2) {
+            conectado.oferecer(Protocolo.erro("uso: ENTRASALAH <sala> <resposta>"));
+            return;
+        }
+        String nome = quadro.campos().get(0);
+        String resposta = quadro.campos().get(1);
+        Sala destino = salas.obter(nome);
+        if (destino == null || destino != desafioPendente) {
+            conectado.oferecer(Protocolo.erro("comece a entrada com /entrar <sala>"));
+            return;
+        }
+        if (!destino.senha().confereResposta(resposta, noncePendente)) {
+            limparDesafio();
             conectado.oferecer(Protocolo.erro("senha incorreta para a sala " + destino.nome()));
             return;
         }
+        limparDesafio();
+        trocarParaSegura(destino);
+    }
+
+    private void limparDesafio() {
+        desafioPendente = null;
+        noncePendente = null;
+    }
+
+    private void trocarParaSegura(Sala destino) {
         try {
             trocarPara(destino);
         } catch (IllegalArgumentException e) {

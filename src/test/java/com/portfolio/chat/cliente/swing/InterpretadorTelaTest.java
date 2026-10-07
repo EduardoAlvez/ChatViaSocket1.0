@@ -138,11 +138,21 @@ class InterpretadorTelaTest {
     }
 
     @Test
+    void chaveViraDesafioDeSenha() {
+        EventoTela evento = interpretar("ana", "CHAVE|abc123|nonce9");
+
+        EventoTela.Chave desafio = assertInstanceOf(EventoTela.Chave.class, evento);
+        assertEquals("abc123", desafio.salt());
+        assertEquals("nonce9", desafio.nonce());
+    }
+
+    @Test
     void quadrosDeEnvioDoClienteNaoViramLinha() {
         assertNull(interpretar("ana", "ENTRAR|ana"));
         assertNull(interpretar("ana", "SAIR"));
-        assertNull(interpretar("ana", "CRIARSALA|vip|senha1"));
-        assertNull(interpretar("ana", "ENTRASALA|vip|senha1"));
+        assertNull(interpretar("ana", "CRIARSALA|vip|salt|hash"));
+        assertNull(interpretar("ana", "ENTRASALA|vip"));
+        assertNull(interpretar("ana", "ENTRASALAH|vip|resposta"));
     }
 
     // ---------------------------------------------------------------

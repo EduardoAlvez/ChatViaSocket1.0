@@ -1,6 +1,7 @@
 package com.portfolio.chat.cliente;
 
 import com.portfolio.chat.protocolo.Protocolo;
+import com.portfolio.chat.protocolo.SenhaHash;
 import com.portfolio.chat.protocolo.TipoQuadro;
 import com.portfolio.chat.protocolo.Quadro;
 import com.portfolio.chat.protocolo.ProtocoloException;
@@ -22,6 +23,8 @@ public final class ClienteChat {
     private DataInputStream entrada;
     private DataOutputStream saida;
     private volatile boolean finalizado;
+    private volatile String senhaPendente;
+    private volatile String salaPendente;
 
     public static void main(String[] args) {
         String ip = "localhost";
@@ -60,6 +63,10 @@ public final class ClienteChat {
         Renderizador renderizador = new Renderizador(meuNome);
         new Thread(
                 new RecebedorMensagens(entrada, quadro -> {
+                    if (quadro.tipo() == TipoQuadro.CHAVE) {
+                        responderDesafio(quadro);
+                        return;
+                    }
                     String linha = renderizador.render(quadro);
                     if (!linha.isEmpty()) {
                         System.out.println(linha);
@@ -201,10 +208,10 @@ public final class ClienteChat {
         }
         if (baixo.startsWith("/entrar ")) {
             String[] partes = linha.trim().split("\\s+", 3);
-            if (partes.length == 2) {
-                saida.writeUTF(Protocolo.entrarSala(partes[1], ""));
-            } else if (partes.length == 3) {
-                saida.writeUTF(Protocolo.entrarSala(partes[1], partes[2]));
+            if (partes.length == 2 || partes.length == 3) {
+                salaPendente = partes[1];
+                senhaPendente = partes.length == 3 ? partes[2] : null;
+                saida.writeUTF(Protocolo.entrarSala(partes[1]));
             } else {
                 System.out.println("[!] uso: /entrar <sala> [senha]");
             }
@@ -236,6 +243,30 @@ public final class ClienteChat {
         }
         saida.writeUTF(Protocolo.mensagem(linha));
         return false;
+    }
+
+    /** Responde ao desafio CHAVE do servidor com a prova da senha digitada. */
+    private void responderDesafio(Quadro desafio) {
+        String senha = senhaPendente;
+        senhaPendente = null;
+        try {
+            if (senha == null || senha.isEmpty()) {
+                System.out.println("[!] essa sala tem senha — use /entrar <sala> <senha>");
+                return;
+            }
+            if (desafio.campos().size() < 2 || salaPendente == null) {
+                System.out.println("[!] desafio inesperado do servidor");
+                return;
+            }
+            String hash = SenhaHash.daSenha(senha, desafio.campos().get(0));
+            String resposta = SenhaHash.resposta(hash, desafio.campos().get(1));
+            saida.writeUTF(Protocolo.entrarSalaComResposta(salaPendente, resposta));
+        } catch (IllegalArgumentException e) {
+            System.out.println("[!] " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("[!] Conexão com o servidor perdida.");
+            finalizado = true;
+        }
     }
 
     private void desconectar() {

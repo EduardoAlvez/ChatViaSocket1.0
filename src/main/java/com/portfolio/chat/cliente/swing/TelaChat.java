@@ -2,6 +2,7 @@ package com.portfolio.chat.cliente.swing;
 
 import com.portfolio.chat.cliente.RecebedorMensagens;
 import com.portfolio.chat.protocolo.Protocolo;
+import com.portfolio.chat.protocolo.SenhaHash;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
@@ -57,6 +58,8 @@ public final class TelaChat extends JFrame {
     private String tituloBase;
     private boolean avisoPendente;
     private boolean conexaoCaiu;
+    private String senhaPendente;
+    private String salaPendente;
 
     public TelaChat(String eu, String ip, int porta,
                     DataInputStream entrada, DataOutputStream saida) {
@@ -186,6 +189,39 @@ public final class TelaChat extends JFrame {
             JOptionPane.showMessageDialog(this,
                     String.join("\n", salas.nomes()), "Salas disponíveis",
                     JOptionPane.INFORMATION_MESSAGE);
+        } else if (evento instanceof InterpretadorTela.EventoTela.Chave desafio) {
+            responderDesafio(desafio);
+        }
+    }
+
+    /** Responde ao desafio CHAVE: usa a senha digitada no diálogo ou pede de novo. */
+    private void responderDesafio(InterpretadorTela.EventoTela.Chave desafio) {
+        String senha = senhaPendente;
+        senhaPendente = null;
+        if (senha == null || senha.isEmpty()) {
+            JPasswordField campoSenha = new JPasswordField(14);
+            int opcao = JOptionPane.showConfirmDialog(this,
+                    new Object[]{"Senha:", campoSenha},
+                    "Sala protegida — " + salaPendente,
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (opcao != JOptionPane.OK_OPTION) {
+                return;
+            }
+            senha = new String(campoSenha.getPassword());
+            if (senha.isBlank()) {
+                return;
+            }
+        }
+        try {
+            String hash = SenhaHash.daSenha(senha, desafio.salt());
+            saida.writeUTF(Protocolo.entrarSalaComResposta(salaPendente,
+                    SenhaHash.resposta(hash, desafio.nonce())));
+            saida.flush();
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(),
+                    "Senha inválida", JOptionPane.WARNING_MESSAGE);
+        } catch (IOException e) {
+            conexaoEncerrada();
         }
     }
 
@@ -260,10 +296,14 @@ public final class TelaChat extends JFrame {
             return;
         }
         try {
-            String quadro = criar
-                    ? Protocolo.criarSala(campoSala.getText(), new String(campoSenha.getPassword()))
-                    : Protocolo.entrarSala(campoSala.getText(), new String(campoSenha.getPassword()));
-            saida.writeUTF(quadro);
+            if (criar) {
+                saida.writeUTF(Protocolo.criarSala(campoSala.getText(),
+                        new String(campoSenha.getPassword())));
+            } else {
+                salaPendente = campoSala.getText().trim();
+                senhaPendente = new String(campoSenha.getPassword());
+                saida.writeUTF(Protocolo.entrarSala(salaPendente));
+            }
             saida.flush();
         } catch (IllegalArgumentException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Dados inválidos",

@@ -1,5 +1,6 @@
 package com.portfolio.chat.servidor;
 
+import com.portfolio.chat.protocolo.SenhaHash;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,6 +17,19 @@ class SenhaSalaTest {
         assertFalse(senha.confere("errada"));
         assertFalse(senha.confere(""));
         assertFalse(senha.confere(null));
+    }
+
+    @Test
+    void confereRespostaDoDesafio() {
+        SenhaSala senha = SenhaSala.nova("segredo");
+        String hash = senha.hashHex();
+        String nonce = "00112233445566778899aabbccddeeff";
+
+        assertTrue(senha.confereResposta(SenhaHash.resposta(hash, nonce), nonce));
+        assertFalse(senha.confereResposta(
+                SenhaHash.resposta(hash, "ffffffffffffffffffffffffffffffff"), nonce));
+        assertFalse(senha.confereResposta("beef", nonce));
+        assertFalse(senha.confereResposta(null, nonce));
     }
 
     @Test

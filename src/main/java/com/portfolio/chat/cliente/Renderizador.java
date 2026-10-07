@@ -32,7 +32,7 @@ public final class Renderizador {
             case FIM -> "[!] " + Protocolo.textoApos(quadro, 0);
             case SALOK -> "Você está na sala " + campo(quadro, 0);
             case SALAS -> "Salas: " + campo(quadro, 0);
-            case SAIR, ENTRAR, CRIARSALA, ENTRASALA -> "";
+            case SAIR, ENTRAR, CRIARSALA, ENTRASALA, ENTRASALAH, CHAVE -> "";
         };
     }
 

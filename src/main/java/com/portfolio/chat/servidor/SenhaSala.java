@@ -1,17 +1,14 @@
 package com.portfolio.chat.servidor;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import com.portfolio.chat.protocolo.SenhaHash;
 
 /**
  * Senha de sala guardada como hash SHA-256 com salt aleatório.
  * O servidor nunca guarda a senha em texto puro — só salt + hash em hex.
+ * Na entrada, a conferência é pela resposta ao desafio ({@link #confereResposta}),
+ * também sem a senha passar pelo fio.
  */
 public final class SenhaSala {
-
-    private static final SecureRandom ALEATORIO = new SecureRandom();
 
     private final String saltHex;
     private final String hashHex;
@@ -23,13 +20,18 @@ public final class SenhaSala {
 
     /** Gera um salt novo e calcula o hash da senha. */
     public static SenhaSala nova(String senha) {
-        byte[] salt = new byte[16];
-        ALEATORIO.nextBytes(salt);
-        return new SenhaSala(hex(salt), hash(salt, senha));
+        String salt = SenhaHash.novoSalt();
+        return new SenhaSala(salt, SenhaHash.daSenha(senha, salt));
     }
 
-    /** Reconstrói a senha a partir do que estava salvo em disco. */
+    /**
+     * Reconstrói a senha a partir do que estava salvo em disco ou veio do cliente.
+     *
+     * @throws IllegalArgumentException se salt/hash não estiverem no formato hex
+     */
     public static SenhaSala deDados(String saltHex, String hashHex) {
+        SenhaHash.validarSalt(saltHex);
+        SenhaHash.validarHash(hashHex);
         return new SenhaSala(saltHex, hashHex);
     }
 
@@ -38,7 +40,26 @@ public final class SenhaSala {
         if (senha == null || senha.isEmpty()) {
             return false;
         }
-        return hash(hexParaBytes(saltHex), senha).equals(hashHex);
+        try {
+            return SenhaHash.confere(senha, saltHex, hashHex);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Confere a prova enviada pelo cliente para o nonce deste desafio:
+     * resposta tem que ser SHA-256(hash + nonce).
+     */
+    public boolean confereResposta(String respostaHex, String nonceHex) {
+        if (respostaHex == null || nonceHex == null) {
+            return false;
+        }
+        try {
+            return SenhaHash.resposta(hashHex, nonceHex).equals(respostaHex);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public String saltHex() {
@@ -47,31 +68,5 @@ public final class SenhaSala {
 
     public String hashHex() {
         return hashHex;
-    }
-
-    private static String hash(byte[] salt, String senha) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update(salt);
-            return hex(md.digest(senha.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponível", e);
-        }
-    }
-
-    private static String hex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-
-    private static byte[] hexParaBytes(String hex) {
-        byte[] bytes = new byte[hex.length() / 2];
-        for (int i = 0; i < bytes.length; i++) {
-            bytes[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
-        }
-        return bytes;
     }
 }

@@ -195,13 +195,31 @@ public final class Protocolo {
         return montar(TipoQuadro.LISTA);
     }
 
+    /**
+     * Monta o pedido de criação de sala. Com senha, o cliente gera o salt e
+     * manda só o hash — a senha não sai da máquina. Senha vazia = sala aberta.
+     */
     public static String criarSala(String sala, String senha) {
-        return montar(TipoQuadro.CRIARSALA, validarNome(sala), validarSenha(senha));
+        String nome = validarNome(sala);
+        String senhaLimpa = validarSenha(senha);
+        if (senhaLimpa.isEmpty()) {
+            return montar(TipoQuadro.CRIARSALA, nome, "", "");
+        }
+        String salt = SenhaHash.novoSalt();
+        return montar(TipoQuadro.CRIARSALA, nome, salt, SenhaHash.daSenha(senhaLimpa, salt));
     }
 
-    /** Entra (ou troca para) a sala; a senha informada não é validada aqui — quem julga é o servidor. */
-    public static String entrarSala(String sala, String senha) {
-        return montar(TipoQuadro.ENTRASALA, validarNome(sala), senha == null ? "" : senha);
+    /**
+     * Pedido de troca de sala. Sala com senha responde CHAVE e o cliente
+     * completa com {@link #entrarSalaComResposta(String, String)}.
+     */
+    public static String entrarSala(String sala) {
+        return montar(TipoQuadro.ENTRASALA, validarNome(sala));
+    }
+
+    /** Resposta ao desafio CHAVE: prova de que o cliente sabe a senha. */
+    public static String entrarSalaComResposta(String sala, String respostaHex) {
+        return montar(TipoQuadro.ENTRASALAH, validarNome(sala), respostaHex);
     }
 
     public static String pedirSalas() {
@@ -255,6 +273,11 @@ public final class Protocolo {
     /** Confirmação de que o cliente está na sala (inicial ou após trocar). */
     public static String salaOk(String sala) {
         return montar(TipoQuadro.SALOK, sala);
+    }
+
+    /** Desafio de senha: cliente responde com {@link #entrarSalaComResposta}. */
+    public static String chave(String saltHex, String nonceHex) {
+        return montar(TipoQuadro.CHAVE, saltHex, nonceHex);
     }
 
     /** Lista de salas separada por vírgula (resposta ao pedido SALAS). */
