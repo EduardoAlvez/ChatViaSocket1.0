@@ -90,8 +90,8 @@ public final class ClienteSwing {
                 if (meuNome == null) {
                     continue;
                 }
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    TelaChat tela = new TelaChat(meuNome, ip, porta, entrada, saida);
+                Reconector reconector = antiga -> reconectar(antiga, meuNome, ip, porta);                javax.swing.SwingUtilities.invokeLater(() -> {
+                    TelaChat tela = new TelaChat(meuNome, ip, porta, entrada, saida, reconector);
                     tela.setVisible(true);
                 });
                 return;
@@ -99,6 +99,39 @@ public final class ClienteSwing {
                 JOptionPane.showMessageDialog(null,
                         "Não foi possível conectar em " + ip + ":" + porta + "\n" + e.getMessage(),
                         "Falha na conexão", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    /**
+     * Abre uma conexão nova com os mesmos dados da que caiu e troca a janela
+     * morta por uma viva. Fica em loop pedindo confirmação enquanto falhar.
+     */
+    private static void reconectar(TelaChat antiga, String nome, String ip, int porta) {
+        while (true) {
+            try {
+                Socket socket = new Socket(ip, porta);
+                DataInputStream entrada = new DataInputStream(socket.getInputStream());
+                DataOutputStream saida = new DataOutputStream(socket.getOutputStream());
+                saida.writeUTF(Protocolo.entrar(nome));
+                String meuNome = aguardarEntrada(entrada, socket, nome);
+                if (meuNome != null) {
+                    Reconector reconector = antigaNova -> reconectar(antigaNova, meuNome, ip, porta);
+                    TelaChat nova = new TelaChat(meuNome, ip, porta, entrada, saida, reconector);
+                    nova.setVisible(true);
+                    antiga.dispose();
+                    return;
+                }
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(antiga,
+                        "Não foi possível reconectar em " + ip + ":" + porta + "\n" + e.getMessage(),
+                        "Falha na reconexão", JOptionPane.ERROR_MESSAGE);
+            }
+            int deNovo = JOptionPane.showConfirmDialog(antiga,
+                    "Tentar reconectar de novo?", "Sem conexão",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (deNovo != JOptionPane.YES_OPTION) {
+                return;
             }
         }
     }

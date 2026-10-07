@@ -47,6 +47,7 @@ public final class TelaChat extends JFrame {
     private final DataInputStream entrada;
     private final DataOutputStream saida;
     private final InterpretadorTela interpretador;
+    private final Reconector reconector;
 
     private final JTextPane historico = new JTextPane();
     private final DefaultListModel<String> modeloParticipantes = new DefaultListModel<>();
@@ -55,13 +56,21 @@ public final class TelaChat extends JFrame {
 
     private String tituloBase;
     private boolean avisoPendente;
+    private boolean conexaoCaiu;
 
     public TelaChat(String eu, String ip, int porta,
                     DataInputStream entrada, DataOutputStream saida) {
+        this(eu, ip, porta, entrada, saida, null);
+    }
+
+    /** Com reconector: a janela pergunta se quer reconectar quando a conexão cair. */
+    public TelaChat(String eu, String ip, int porta,
+                    DataInputStream entrada, DataOutputStream saida, Reconector reconector) {
         this.eu = eu;
         this.entrada = entrada;
         this.saida = saida;
         this.interpretador = new InterpretadorTela(eu);
+        this.reconector = reconector;
 
         tituloBase = "Chat — " + eu;
         setTitle(tituloBase);
@@ -134,6 +143,13 @@ public final class TelaChat extends JFrame {
                     avisoPendente = false;
                     setTitle(tituloBase);
                 }
+            }
+        });
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                conexaoCaiu = true;
+                fecharTudo();
             }
         });
 
@@ -258,6 +274,7 @@ public final class TelaChat extends JFrame {
     }
 
     private void sair() {
+        conexaoCaiu = true;
         try {
             saida.writeUTF(Protocolo.sair());
             saida.flush();
@@ -269,8 +286,21 @@ public final class TelaChat extends JFrame {
     }
 
     private void conexaoEncerrada() {
+        if (conexaoCaiu) {
+            return;
+        }
+        conexaoCaiu = true;
         status.setText("[!] conexão encerrada");
         campo.setEnabled(false);
+        if (reconector == null) {
+            return;
+        }
+        int opcao = JOptionPane.showConfirmDialog(this,
+                "Conexão com o servidor encerrada.\nTentar reconectar?",
+                "Conexão perdida", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (opcao == JOptionPane.YES_OPTION) {
+            reconector.reconectar(this);
+        }
     }
 
     private void fecharTudo() {
