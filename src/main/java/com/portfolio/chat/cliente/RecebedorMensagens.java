@@ -6,20 +6,22 @@ import com.portfolio.chat.protocolo.Quadro;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /**
  * Fica lendo os quadros do servidor em uma thread própria
- * (para não travar a digitação) e imprime na tela.
+ * (para não travar a digitação) e entrega cada um pronto
+ * para quem chamou — console imprime, interface gráfica pinta.
  */
 public final class RecebedorMensagens implements Runnable {
 
     private final DataInputStream entrada;
-    private final Renderizador renderizador;
+    private final Consumer<Quadro> aoReceber;
     private final Runnable aoEncerrar;
 
-    public RecebedorMensagens(DataInputStream entrada, Renderizador renderizador, Runnable aoEncerrar) {
+    public RecebedorMensagens(DataInputStream entrada, Consumer<Quadro> aoReceber, Runnable aoEncerrar) {
         this.entrada = entrada;
-        this.renderizador = renderizador;
+        this.aoReceber = aoReceber;
         this.aoEncerrar = aoEncerrar;
     }
 
@@ -28,17 +30,14 @@ public final class RecebedorMensagens implements Runnable {
         try {
             while (true) {
                 String bruto = entrada.readUTF();
-                Quadro quadro;
                 try {
-                    quadro = Protocolo.parse(bruto);
+                    aoReceber.accept(Protocolo.parse(bruto));
                 } catch (ProtocoloException e) {
-                    System.out.println(bruto);
-                    continue;
+                    // quadro malformado do outro lado: nada a exibir
                 }
-                System.out.println(renderizador.render(quadro));
             }
         } catch (IOException e) {
-            // conexão encerrada por nós ou pelo servidor — o loop principal cuida da mensagem
+            // conexão encerrada por nós ou pelo servidor — o chamador cuida da mensagem
         } finally {
             aoEncerrar.run();
         }

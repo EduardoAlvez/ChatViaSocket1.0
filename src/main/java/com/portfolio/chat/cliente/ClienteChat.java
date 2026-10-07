@@ -57,8 +57,14 @@ public final class ClienteChat {
         }
 
         System.out.println("Conectado como " + meuNome + ". Digite /ajuda para ver os comandos.");
+        Renderizador renderizador = new Renderizador(meuNome);
         new Thread(
-                new RecebedorMensagens(entrada, new Renderizador(meuNome), () -> finalizado = true),
+                new RecebedorMensagens(entrada, quadro -> {
+                    String linha = renderizador.render(quadro);
+                    if (!linha.isEmpty()) {
+                        System.out.println(linha);
+                    }
+                }, () -> finalizado = true),
                 "recebedor-mensagens"
         ).start();
 

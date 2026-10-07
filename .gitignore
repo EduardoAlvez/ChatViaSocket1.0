@@ -3,6 +3,8 @@ out/
 bin/
 target/
 *.class
+dependency-reduced-pom.xml
+historico/
 
 # IntelliJ IDEA
 .idea/
