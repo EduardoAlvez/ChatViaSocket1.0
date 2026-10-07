@@ -21,7 +21,8 @@ feito em Java puro, sem bibliotecas de rede.
 - **Senha por sala** (SHA-256 + salt) — só quem tem a senha entra;
   sala criada sem senha é aberta para todos
 - **Persistência**: salas (`historico/salas.tsv`) e histórico de cada sala
-  (`historico/<sala>.txt`) sobrevivem ao reinício do servidor
+  (`historico/<sala>.txt`) sobrevivem ao reinício do servidor — com rotação
+  automática para não crescer sem fim
 - **Cliente gráfico** com FlatLaf (Swing) e cliente de console — mesma rede,
   mesma sala, juntos
 - **Múltiplos clientes** conectados ao mesmo tempo (limite de 100 por sala)

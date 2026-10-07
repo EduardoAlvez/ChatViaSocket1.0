@@ -107,4 +107,27 @@ class HistoricoArquivoTest {
         assertTrue(arquivo.lerLinhas("naoexiste").isEmpty());
         assertTrue(arquivo.lerSalas().isEmpty());
     }
+
+    @Test
+    void arquivoGrandeRotacionaGuardandoSoAsUltimasLinhas() {
+        HistoricoArquivo arquivo = new HistoricoArquivo(tempDir, 5, 1);
+        for (int i = 1; i <= 8; i++) {
+            arquivo.anexar("geral", "10:0" + i, "ana", "msg" + i);
+        }
+
+        List<String[]> linhas = arquivo.lerLinhas("geral");
+        assertEquals(5, linhas.size());
+        assertEquals("msg4", linhas.get(0)[2]);
+        assertEquals("msg8", linhas.get(4)[2]);
+    }
+
+    @Test
+    void arquivoDentroDoLimiteNaoRotaciona() {
+        HistoricoArquivo arquivo = new HistoricoArquivo(tempDir, 5, 1024 * 1024);
+        for (int i = 1; i <= 4; i++) {
+            arquivo.anexar("geral", "10:0" + i, "ana", "msg" + i);
+        }
+
+        assertEquals(4, arquivo.lerLinhas("geral").size());
+    }
 }

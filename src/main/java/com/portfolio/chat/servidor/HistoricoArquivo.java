@@ -20,16 +20,29 @@ import java.util.List;
 public final class HistoricoArquivo {
 
     private static final String ARQUIVO_SALAS = "salas.tsv";
+    private static final int MAX_LINHAS_PADRAO = 1000;
+    private static final long MAX_BYTES_PADRAO = 512 * 1024;
 
     private final Path dir;
+    private final int maxLinhas;
+    private final long maxBytes;
 
     public HistoricoArquivo(Path dir) {
+        this(dir, MAX_LINHAS_PADRAO, MAX_BYTES_PADRAO);
+    }
+
+    /** Permite limites menores nos testes. */
+    HistoricoArquivo(Path dir, int maxLinhas, long maxBytes) {
         this.dir = dir;
+        this.maxLinhas = maxLinhas;
+        this.maxBytes = maxBytes;
     }
 
     /** Registra uma mensagem no arquivo da sala. */
     public void anexar(String sala, String hora, String de, String texto) {
-        anexarLinha(arquivo(sala), hora + "\t" + de + "\t" + texto);
+        Path arquivo = arquivo(sala);
+        anexarLinha(arquivo, hora + "\t" + de + "\t" + texto);
+        rotacionarSePreciso(arquivo);
     }
 
     /** Mensagens do arquivo da sala: [hora, de, texto], na ordem gravada. */
@@ -58,6 +71,29 @@ public final class HistoricoArquivo {
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
             Log.erro("não consegui gravar " + arquivo + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Quando o arquivo de uma sala passa do limite de bytes, reescreve
+     * guardando só as últimas {@code maxLinhas} linhas — o histórico nunca
+     * cresce sem fim. Falha de disco aqui também só gera log.
+     */
+    private void rotacionarSePreciso(Path arquivo) {
+        try {
+            if (!Files.exists(arquivo) || Files.size(arquivo) <= maxBytes) {
+                return;
+            }
+            List<String> todas = Files.readAllLines(arquivo, StandardCharsets.UTF_8);
+            List<String> finais = todas.size() <= maxLinhas
+                    ? todas
+                    : todas.subList(todas.size() - maxLinhas, todas.size());
+            Files.write(arquivo, finais, StandardCharsets.UTF_8,
+                    StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            Log.info("histórico " + arquivo.getFileName()
+                    + " rotacionado: " + todas.size() + " -> " + finais.size() + " linhas");
+        } catch (IOException e) {
+            Log.erro("não consegui rotacionar " + arquivo + ": " + e.getMessage());
         }
     }
 
