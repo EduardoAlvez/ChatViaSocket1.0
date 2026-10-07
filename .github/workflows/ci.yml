@@ -26,5 +26,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: chat-via-socket
-          path: target/chat-via-socket-1.0.0.jar
+          path: target/chat-via-socket-1.1.0.jar
           if-no-files-found: error
