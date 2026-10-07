@@ -104,6 +104,16 @@ class GerenciadorSalasTest {
     }
 
     @Test
+    void nomesMarcadosSinalizaSalasComSenha() {
+        GerenciadorSalas salas = new GerenciadorSalas();
+        salas.criar("vendas", "senha1");
+        salas.criar("apoio", "");
+
+        assertEquals(List.of("apoio", "geral", "vendas*"), salas.nomesMarcados());
+        assertEquals(List.of("apoio", "geral", "vendas"), salas.nomes());
+    }
+
+    @Test
     void moverTiraDaOrigemELevaParaODestinoSemFechar() {
         GerenciadorSalas salas = new GerenciadorSalas();
         Sala vendas = salas.criar("vendas", "");

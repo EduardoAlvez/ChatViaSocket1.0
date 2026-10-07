@@ -92,7 +92,7 @@ Pela IDE: rode as classes `ServidorChat`, `ClienteSwing` ou `ClienteChat`
 | Comando | O que faz |
 |---------|-----------|
 | `/lista` | mostra quem está na sala |
-| `/salas` | lista as salas existentes |
+| `/salas` | lista as salas existentes (com `*` no fim = têm senha) |
 | `/criar <sala> [senha]` | cria a sala e já entra nela |
 | `/entrar <sala> [senha]` | troca para outra sala (pede senha se tiver) |
 | `/w <nick> <mensagem>` | mensagem privada só para aquela pessoa |
@@ -120,7 +120,7 @@ tcpdump e de testar sem dependência nenhuma:
 | `HIST\|hora\|de\|texto` | servidor → cliente | mensagens anteriores ao entrar |
 | `CRIARSALA\|sala\|senha` | cliente → servidor | cria sala e entra nela |
 | `ENTRASALA\|sala\|senha` | cliente → servidor | troca de sala (com senha, se houver) |
-| `SALAS` / `SALAS\|sala1,sala2` | cliente ↔ servidor | lista de salas |
+| `SALAS` / `SALAS\|sala1,sala2` | cliente ↔ servidor | lista de salas (`*` = com senha) |
 | `SALOK\|sala` | servidor → cliente | sala atual confirmada |
 | `SAIR` | cliente → servidor | sair da sala |
 | `FIM\|motivo` | servidor → sala | servidor encerrou |

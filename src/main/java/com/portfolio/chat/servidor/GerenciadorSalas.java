@@ -119,6 +119,17 @@ public final class GerenciadorSalas {
     }
 
     /**
+     * Nomes em ordem alfabética; as salas com senha ganham o sufixo {@code *}
+     * (o caractere não é permitido em nomes de sala, então não ambigua).
+     */
+    public synchronized List<String> nomesMarcados() {
+        return salas.values().stream()
+                .map(sala -> sala.aberta() ? sala.nome() : sala.nome() + "*")
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    /**
      * Move o cliente de uma sala para outra: registra no destino primeiro
      * (se falhar, não sai da origem) e só então remove da origem,
      * avisando as duas salas.

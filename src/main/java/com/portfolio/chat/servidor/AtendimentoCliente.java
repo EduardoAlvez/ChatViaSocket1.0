@@ -143,7 +143,7 @@ public final class AtendimentoCliente implements Runnable {
             case LISTA -> conectado.oferecer(Protocolo.listaDe(salaAtual.clientes().nicks()));
             case CRIARSALA -> criarSala(quadro);
             case ENTRASALA -> entrarSala(quadro);
-            case SALAS -> conectado.oferecer(Protocolo.salasDe(salas.nomes()));
+            case SALAS -> conectado.oferecer(Protocolo.salasDe(salas.nomesMarcados()));
             case SAIR -> {
                 return false;
             }
