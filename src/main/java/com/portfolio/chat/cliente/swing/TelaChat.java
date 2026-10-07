@@ -53,6 +53,9 @@ public final class TelaChat extends JFrame {
     private final JTextField campo = new JTextField();
     private final JLabel status = new JLabel();
 
+    private String tituloBase;
+    private boolean avisoPendente;
+
     public TelaChat(String eu, String ip, int porta,
                     DataInputStream entrada, DataOutputStream saida) {
         this.eu = eu;
@@ -60,7 +63,8 @@ public final class TelaChat extends JFrame {
         this.saida = saida;
         this.interpretador = new InterpretadorTela(eu);
 
-        setTitle("Chat — " + eu);
+        tituloBase = "Chat — " + eu;
+        setTitle(tituloBase);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(780, 520);
         setLocationRelativeTo(null);
@@ -123,6 +127,16 @@ public final class TelaChat extends JFrame {
         raiz.add(sul, BorderLayout.SOUTH);
         setContentPane(raiz);
 
+        addWindowFocusListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowGainedFocus(java.awt.event.WindowEvent e) {
+                if (avisoPendente) {
+                    avisoPendente = false;
+                    setTitle(tituloBase);
+                }
+            }
+        });
+
         new Thread(
                 new RecebedorMensagens(entrada, quadro -> {
                     InterpretadorTela.EventoTela evento = interpretador.interpretar(quadro);
@@ -136,6 +150,11 @@ public final class TelaChat extends JFrame {
 
     private void tratar(InterpretadorTela.EventoTela evento) {
         if (evento instanceof InterpretadorTela.EventoTela.Linha linha) {
+            if (linha.tipo() == InterpretadorTela.TipoTexto.PRIVADA_RECEBIDA && !isActive()) {
+                avisoPendente = true;
+                setTitle("* " + tituloBase);
+                java.awt.Toolkit.getDefaultToolkit().beep();
+            }
             anexar(linha);
         } else if (evento instanceof InterpretadorTela.EventoTela.Participantes participantes) {
             modeloParticipantes.clear();
@@ -143,7 +162,9 @@ public final class TelaChat extends JFrame {
                 modeloParticipantes.addElement(nick);
             }
         } else if (evento instanceof InterpretadorTela.EventoTela.SalaAtual sala) {
-            setTitle("Chat — " + eu + " · " + sala.nome());
+            tituloBase = "Chat — " + eu + " · " + sala.nome();
+            avisoPendente = false;
+            setTitle(tituloBase);
             status.setText("sala " + sala.nome() + " — conectado como " + eu);
         } else if (evento instanceof InterpretadorTela.EventoTela.SalasDisponiveis salas) {
             JOptionPane.showMessageDialog(this,
