@@ -93,6 +93,29 @@ public final class InterpretadorTela {
     }
 
     /**
+     * Converte a linha digitada no campo da janela em um quadro de envio:
+     * {@code /w <nick> <mensagem>} vira PRIVADO; texto livre vira MSG.
+     *
+     * @throws IllegalArgumentException para outros comandos ou texto inválido
+     */
+    public static String quadroDaLinha(String linha) {
+        String limpo = linha == null ? "" : linha.trim();
+        String baixo = limpo.toLowerCase();
+        if (baixo.equals("/w") || baixo.startsWith("/w ")) {
+            String[] partes = limpo.split("\\s+", 3);
+            if (partes.length < 3) {
+                throw new IllegalArgumentException("uso: /w <nick> <mensagem>");
+            }
+            return Protocolo.privado(partes[1], partes[2]);
+        }
+        if (limpo.startsWith("/")) {
+            throw new IllegalArgumentException(
+                    "comando desconhecido — use os botões ou /w <nick> <mensagem>");
+        }
+        return Protocolo.mensagem(limpo);
+    }
+
+    /**
      * PRIVADO|hora|de|para|texto — mostra "de" quando é para você
      * e "para" quando é a sua saída.
      */

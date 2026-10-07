@@ -3,6 +3,7 @@ package com.portfolio.chat.cliente.swing;
 import com.portfolio.chat.cliente.swing.InterpretadorTela.EventoTela;
 import com.portfolio.chat.protocolo.Protocolo;
 import com.portfolio.chat.protocolo.Quadro;
+import com.portfolio.chat.protocolo.TipoQuadro;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class InterpretadorTelaTest {
@@ -140,5 +143,59 @@ class InterpretadorTelaTest {
         assertNull(interpretar("ana", "SAIR"));
         assertNull(interpretar("ana", "CRIARSALA|vip|senha1"));
         assertNull(interpretar("ana", "ENTRASALA|vip|senha1"));
+    }
+
+    // ---------------------------------------------------------------
+    // Linha digitada -> quadro de envio
+    // ---------------------------------------------------------------
+
+    @Test
+    void textoLivreViraMensagemPublica() {
+        Quadro enviado = quadro(InterpretadorTela.quadroDaLinha("oi tudo bem"));
+
+        assertEquals(TipoQuadro.MSG, enviado.tipo());
+        assertEquals(List.of("oi tudo bem"), enviado.campos());
+    }
+
+    @Test
+    void comandoWViraPrivado() {
+        Quadro enviado = quadro(InterpretadorTela.quadroDaLinha("/w bia chega"));
+
+        assertEquals(TipoQuadro.PRIVADO, enviado.tipo());
+        assertEquals(List.of("bia", "chega"), enviado.campos());
+    }
+
+    @Test
+    void comandoWIgnoraMaiusculasEEspacosNasPontas() {
+        Quadro enviado = quadro(InterpretadorTela.quadroDaLinha("  /W bia oi  "));
+
+        assertEquals(TipoQuadro.PRIVADO, enviado.tipo());
+        assertEquals(List.of("bia", "oi"), enviado.campos());
+    }
+
+    @Test
+    void comandoWSemDestinatarioDaErro() {
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("/w bia"));
+        assertEquals("uso: /w <nick> <mensagem>", erro.getMessage());
+        assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("/w"));
+    }
+
+    @Test
+    void outroComandoDaErroEmVezDeVirarTexto() {
+        IllegalArgumentException erro = assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("/lista"));
+        assertTrue(erro.getMessage().contains("comando desconhecido"));
+        assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("/wxyz oi"));
+    }
+
+    @Test
+    void mensagemInvalidaDaErroDoProtocolo() {
+        assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("   "));
+        assertThrows(IllegalArgumentException.class,
+                () -> InterpretadorTela.quadroDaLinha("x".repeat(Protocolo.MAX_TEXTO + 1)));
     }
 }

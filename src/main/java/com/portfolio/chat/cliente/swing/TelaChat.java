@@ -11,6 +11,7 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
@@ -190,7 +191,7 @@ public final class TelaChat extends JFrame {
             return;
         }
         try {
-            saida.writeUTF(Protocolo.mensagem(texto));
+            saida.writeUTF(InterpretadorTela.quadroDaLinha(texto));
             saida.flush();
             campo.setText("");
         } catch (IllegalArgumentException e) {
@@ -213,7 +214,7 @@ public final class TelaChat extends JFrame {
     /** Pergunta sala (e senha) para entrar ou criar. */
     private void trocarSala(boolean criar) {
         JTextField campoSala = new JTextField(14);
-        JTextField campoSenha = new JTextField(14);
+        JPasswordField campoSenha = new JPasswordField(14);
         Object[] campos = {"Sala:", campoSala, "Senha (vazia = aberta):", campoSenha};
         int opcao = JOptionPane.showConfirmDialog(this, campos,
                 criar ? "Criar sala" : "Entrar na sala",
@@ -223,8 +224,8 @@ public final class TelaChat extends JFrame {
         }
         try {
             String quadro = criar
-                    ? Protocolo.criarSala(campoSala.getText(), campoSenha.getText())
-                    : Protocolo.entrarSala(campoSala.getText(), campoSenha.getText());
+                    ? Protocolo.criarSala(campoSala.getText(), new String(campoSenha.getPassword()))
+                    : Protocolo.entrarSala(campoSala.getText(), new String(campoSenha.getPassword()));
             saida.writeUTF(quadro);
             saida.flush();
         } catch (IllegalArgumentException e) {
